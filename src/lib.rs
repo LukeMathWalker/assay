@@ -22,7 +22,7 @@ pub use pretty_assertions_sorted::{assert_eq, assert_eq_sorted, assert_ne};
 #[doc(hidden)]
 pub use rusty_fork::{fork, rusty_fork_id, rusty_fork_test_name, ChildWrapper};
 
-use std::fs::create_dir_all;
+use fs_err::create_dir_all;
 use std::{
   env,
   error::Error,
@@ -57,23 +57,38 @@ impl PrivateFS {
     S: AsRef<Path>,
     D: AsRef<Path>,
   {
-    // Get our pathbuf to the file to include
-    let mut inner_path = source_path.as_ref().to_owned();
+    // Get our pathbuf to the file/directory to include
+    let inner_path = {
+      let mut p = source_path.as_ref().to_owned();
+      // If the path given is not absolute then it's relative to the dir we
+      // ran the test from
+      let is_relative = p.is_relative();
+      if is_relative {
+        p = self.ran_from.join(&source_path);
+      }
+      p
+    };
 
-    // If the path given is not absolute then it's relative to the dir we
-    // ran the test from
-    let is_relative = inner_path.is_relative();
-    if is_relative {
-      inner_path = self.ran_from.join(&source_path);
-    }
+    let destination_path = destination_path.map(|p| p.as_ref().to_owned());
 
-    if !inner_path.is_file() {
+    if inner_path.is_file() {
+      self.include_file(inner_path, &destination_path)?;
+    } else if inner_path.is_dir() {
+      self.include_directory(inner_path, &destination_path)?;
+    } else {
       panic!(
-        "The source path passed to `#[include()]` must point to a file. {:?} is not a file.",
+        "The source path passed to `#[include()]` must point to a file or a directory. {:?} is neither.",
         inner_path
       );
     }
+    Ok(())
+  }
 
+  fn include_file(
+    &self,
+    inner_path: PathBuf,
+    destination_path: &Option<PathBuf>,
+  ) -> Result<(), Box<dyn Error>> {
     // Get our working directory
     let dir = self.directory.path().to_owned();
 
@@ -92,7 +107,6 @@ impl PrivateFS {
         }
       }
       Some(p) => {
-        let p = p.as_ref();
         if !p.is_relative() {
           panic!(
             "The destination path for included files must be a relative path. {:?} isn't.",
@@ -110,7 +124,40 @@ impl PrivateFS {
 
     // Copy the file over from the file system into the temp file system
     copy(inner_path, destination_path)?;
+    Ok(())
+  }
 
+  fn include_directory(
+    &self,
+    inner_path: PathBuf,
+    destination_path: &Option<PathBuf>,
+  ) -> Result<(), Box<dyn Error>> {
+    // Get our working directory
+    let dir = self.directory.path().to_owned();
+
+    let destination_path = match destination_path {
+      // If the destination path is unspecified, we mount the contents of the directory
+      // in the root directory of the test's private filesystem
+      None => dir,
+      Some(p) => {
+        if !p.is_relative() {
+          panic!(
+            "The destination path for the included directory must be a relative path. {:?} isn't.",
+            p
+          );
+        }
+        // If the relative path to the file includes parent directories create them
+        if let Some(parent) = p.parent() {
+          create_dir_all(dir.join(parent))?;
+        }
+        dir.join(p)
+      }
+    };
+
+    let mut o = fs_extra::dir::CopyOptions::new();
+    o.content_only = true;
+    // Copy the file over from the file system into the temp file system
+    fs_extra::dir::copy(inner_path, destination_path, &o)?;
     Ok(())
   }
 }

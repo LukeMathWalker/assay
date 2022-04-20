@@ -7,9 +7,10 @@
  */
 
 use assay::{assay, assert_eq_sorted};
+use fs_err as fs;
 use std::{
   collections::HashMap,
-  env, fs,
+  env,
   future::Future,
   path::PathBuf,
   pin::Pin,
@@ -36,6 +37,17 @@ fn include() {
   assert!(fs::metadata("lib.rs")?.is_file());
   assert!(fs::metadata("Cargo.toml")?.is_file());
   assert!(fs::metadata("docs/GUIDE.md")?.is_file());
+}
+
+#[assay(include = ["src"])]
+fn include_directory() {
+  assert!(fs::metadata("lib.rs")?.is_file());
+}
+
+#[assay(include = [("src", "legacy/src")])]
+fn include_directory_with_nesting() {
+  assert!(fs::metadata("legacy/src")?.is_dir());
+  assert!(fs::metadata("legacy/src/lib.rs")?.is_file());
 }
 
 #[assay(should_panic)]
