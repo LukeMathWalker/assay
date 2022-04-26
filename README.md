@@ -13,7 +13,7 @@ enters the picture. It seeks to solve a few problems when testing in rust:
   the parallelization of running the test suite
 - Setting up a temporary file system to run things in for a test and having the
   test run inside it is a pain to setup and being relative to it by using
-  `std::env::set_working_dir` is prone to the above issues
+  `std::env::set_current_dir` is prone to the above issues
 - Including fixtures in a test, let alone multiple, can get a bit verbose
 - Setting up and tearing down the same thing for each test can be a lot
 - Want to run `async` tests? There's no runtime and you have to do setup just to
