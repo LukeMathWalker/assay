@@ -62,12 +62,13 @@ impl PrivateFS {
     })
   }
 
-  pub fn rooted(root: PathBuf) -> Result<Self, Box<dyn Error>> {
+  pub fn rooted(root: impl AsRef<Path>) -> Result<Self, Box<dyn Error>> {
     let ran_from = env::current_dir()?;
-    env::set_current_dir(&root)?;
+    let root = root.as_ref();
+    env::set_current_dir(root)?;
     Ok(Self {
       ran_from,
-      directory: TestWorkingDirectory::Rooted(root),
+      directory: TestWorkingDirectory::Rooted(root.to_path_buf()),
     })
   }
 
