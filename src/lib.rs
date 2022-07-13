@@ -71,7 +71,7 @@ impl PrivateFS {
       .context("Failed to set test current directory to the specified `root_directory`")?;
     Ok(Self {
       ran_from,
-      directory: TestWorkingDirectory::Rooted(root.to_path_buf()),
+      directory: TestWorkingDirectory::Rooted(std::env::current_dir().unwrap()),
     })
   }
 
@@ -186,6 +186,7 @@ impl PrivateFS {
     let mut o = fs_extra::dir::CopyOptions::new();
     o.content_only = true;
     // Copy the file over from the file system into the temp file system
+
     fs_extra::dir::copy(inner_path, destination_path, &o)
       .context("Failed to copy the content of a directory into the test working directory")?;
     Ok(())
