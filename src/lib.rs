@@ -143,14 +143,15 @@ impl PrivateFS {
         // If the relative path to the file includes parent directories create
         // them
         if let Some(parent) = p.parent() {
-          create_dir_all(dir.join(parent))?;
+          create_dir_all(dir.join(parent)).context("Failed to create the parent directory for a file that should have been copied into the test working directory")?;
         }
         dir.join(p)
       }
     };
 
     // Copy the file over from the file system into the temp file system
-    copy(inner_path, destination_path)?;
+    copy(inner_path, destination_path)
+      .context("Failed to copy a file into the test working directory")?;
     Ok(())
   }
 
@@ -175,7 +176,8 @@ impl PrivateFS {
         }
         // If the relative path to the file includes parent directories create them
         if let Some(parent) = p.parent() {
-          create_dir_all(dir.join(parent))?;
+          create_dir_all(dir.join(parent))
+            .context("Failed to create the parent directory for a directory that will be included into the test working directory")?;
         }
         dir.join(p)
       }
@@ -184,7 +186,8 @@ impl PrivateFS {
     let mut o = fs_extra::dir::CopyOptions::new();
     o.content_only = true;
     // Copy the file over from the file system into the temp file system
-    fs_extra::dir::copy(inner_path, destination_path, &o)?;
+    fs_extra::dir::copy(inner_path, destination_path, &o)
+      .context("Failed to copy the content of a directory into the test working directory")?;
     Ok(())
   }
 }
