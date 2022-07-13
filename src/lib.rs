@@ -65,6 +65,7 @@ impl PrivateFS {
   pub fn rooted(root: impl AsRef<Path>) -> Result<Self, Box<dyn Error>> {
     let ran_from = env::current_dir()?;
     let root = root.as_ref();
+    fs_err::create_dir_all(root)?;
     env::set_current_dir(root)?;
     Ok(Self {
       ran_from,
