@@ -12,6 +12,7 @@ keywords = ["proc-macro", "test", "testing"]
 categories = ["development-tools", "development-tools::testing"]
 
 [dependencies]
+anyhow = "1.0.58"
 assay-proc-macro = { path = "assay-proc-macro", version = "0.1.0", default-features = false }
 async-std = { version = "^1.10.0", optional = true }
 fs-err = "2.7.0"

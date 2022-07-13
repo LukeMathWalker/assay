@@ -22,6 +22,7 @@ pub use pretty_assertions_sorted::{assert_eq, assert_eq_sorted, assert_ne};
 #[doc(hidden)]
 pub use rusty_fork::{fork, rusty_fork_id, rusty_fork_test_name, ChildWrapper};
 
+use anyhow::Context;
 use fs_err::create_dir_all;
 use std::{
   env,
@@ -65,8 +66,9 @@ impl PrivateFS {
   pub fn rooted(root: impl AsRef<Path>) -> Result<Self, Box<dyn Error>> {
     let ran_from = env::current_dir()?;
     let root = root.as_ref();
-    fs_err::create_dir_all(root)?;
-    env::set_current_dir(root)?;
+    fs_err::create_dir_all(root).context("Failed to create the specific `root_directory`")?;
+    env::set_current_dir(root)
+      .context("Failed to set test current directory to the specified `root_directory`")?;
     Ok(Self {
       ran_from,
       directory: TestWorkingDirectory::Rooted(root.to_path_buf()),
