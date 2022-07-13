@@ -185,6 +185,7 @@ impl PrivateFS {
 
     let mut o = fs_extra::dir::CopyOptions::new();
     o.content_only = true;
+    o.overwrite = true;
     // Copy the file over from the file system into the temp file system
 
     fs_extra::dir::copy(inner_path, destination_path, &o)
