@@ -19,6 +19,7 @@ struct AssayAttribute {
   env: Option<Vec<(String, String)>>,
   setup: Option<Expr>,
   teardown: Option<Expr>,
+  root_directory_path: Option<String>,
 }
 
 impl Parse for AssayAttribute {
@@ -28,6 +29,7 @@ impl Parse for AssayAttribute {
     let mut env = None;
     let mut setup = None;
     let mut teardown = None;
+    let mut root_directory_path = None;
 
     while input.peek(Ident) || {
       if input.peek(Token![,]) {
@@ -77,6 +79,13 @@ impl Parse for AssayAttribute {
           );
         }
         "should_panic" => should_panic = true,
+        "root_directory" => {
+          let _: Token![=] = input.parse()?;
+          let path = input.parse::<ExprLit>()?.lit;
+          if let Lit::Str(path) = path {
+            root_directory_path = Some(path.value());
+          }
+        }
         "env" => {
           let _: Token![=] = input.parse()?;
           let array: ExprArray = input.parse()?;
@@ -122,6 +131,7 @@ impl Parse for AssayAttribute {
       env,
       setup,
       teardown,
+      root_directory_path,
     })
   }
 }
@@ -130,10 +140,16 @@ impl Parse for AssayAttribute {
 pub fn assay(attr: TokenStream, item: TokenStream) -> TokenStream {
   let attr = parse_macro_input!(attr as AssayAttribute);
 
-  let include = if let Some(include) = attr.include {
-    let mut out = quote! {
-      let fs = assay::PrivateFS::new()?;
-    };
+  let mut out = if let Some(root_path) = attr.root_directory_path {
+    quote! {
+      let fs = assay::PrivateFS::rooted(#root_path)?;
+    }
+  } else {
+    quote! {
+      let fs = assay::PrivateFS::temporary()?;
+    }
+  };
+  if let Some(include) = attr.include {
     for (source_path, destination_path) in include {
       let destination_fragment = match destination_path {
         None => quote!(std::option::Option::<::std::path::PathBuf>::None),
@@ -143,11 +159,6 @@ pub fn assay(attr: TokenStream, item: TokenStream) -> TokenStream {
         #out
         fs.include(#source_path, #destination_fragment)?;
       };
-    }
-    out
-  } else {
-    quote! {
-      let fs = assay::PrivateFS::new()?;
     }
   };
 
@@ -217,7 +228,7 @@ pub fn assay(attr: TokenStream, item: TokenStream) -> TokenStream {
           #[allow(unreachable_code)]
           if let Err(e) = || -> Result<(), Box<dyn std::error::Error>> {
             use assay::{assert_eq, assert_eq_sorted, assert_ne};
-            #include
+            #out
             #setup
             #env
             #body

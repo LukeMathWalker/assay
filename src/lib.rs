@@ -31,20 +31,43 @@ use std::{
 };
 use tempfile::{Builder, TempDir};
 
+enum TestWorkingDirectory {
+  Temporary(TempDir),
+  Rooted(PathBuf),
+}
+
+impl TestWorkingDirectory {
+  fn path(&self) -> &Path {
+    match self {
+      TestWorkingDirectory::Temporary(d) => d.path(),
+      TestWorkingDirectory::Rooted(p) => p.as_path(),
+    }
+  }
+}
+
 #[doc(hidden)]
 pub struct PrivateFS {
   ran_from: PathBuf,
-  directory: TempDir,
+  directory: TestWorkingDirectory,
 }
 
 impl PrivateFS {
-  pub fn new() -> Result<Self, Box<dyn Error>> {
+  pub fn temporary() -> Result<Self, Box<dyn Error>> {
     let ran_from = env::current_dir()?;
     let directory = Builder::new().prefix("private").tempdir()?;
     env::set_current_dir(directory.path())?;
     Ok(Self {
       ran_from,
-      directory,
+      directory: TestWorkingDirectory::Temporary(directory),
+    })
+  }
+
+  pub fn rooted(root: PathBuf) -> Result<Self, Box<dyn Error>> {
+    let ran_from = env::current_dir()?;
+    env::set_current_dir(&root)?;
+    Ok(Self {
+      ran_from,
+      directory: TestWorkingDirectory::Rooted(root),
     })
   }
 
